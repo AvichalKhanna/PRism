@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from github import Github, Auth
 from prompt_engine import review_pr, format_comment
-from database import init_db, log_review, get_stats
+from database import init_db, log_review, get_stats, log_repo_connected  # add this
 from dotenv import load_dotenv
 import uvicorn
 
@@ -71,8 +71,19 @@ async def process_pr(payload):
 @app.post("/webhook")
 async def handle_pr(request: Request, background_tasks: BackgroundTasks):
     payload = await request.json()
+    event_type = request.headers.get("X-GitHub-Event", "")
+
+    # Handle webhook connection — just log it, no review
+    if event_type == "ping":
+        repo_name = payload.get("repository", {}).get("full_name")
+        if repo_name:
+            log_repo_connected(repo_name)
+            print(f"New repo connected via webhook: {repo_name}")
+        return {"status": "ping acknowledged", "repo": repo_name}
+
     if payload.get("action") not in ["opened", "synchronize"]:
         return {"status": "ignored"}
+
     background_tasks.add_task(process_pr, payload)
     return {"status": "received"}
 

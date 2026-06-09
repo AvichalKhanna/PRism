@@ -87,3 +87,13 @@ def get_stats():
                 "repos": [dict(r) for r in repos],
                 "recent_reviews": [dict(r) for r in recent_reviews]
             }
+
+def log_repo_connected(repo_name: str):
+    now = datetime.utcnow().isoformat()
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO repos (repo_name, first_seen, last_review, total_reviews)
+                VALUES (%s, %s, %s, 0)
+                ON CONFLICT (repo_name) DO NOTHING
+            """, (repo_name, now, now))
